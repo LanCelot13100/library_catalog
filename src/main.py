@@ -9,8 +9,6 @@ from src.clients.jsonbin_client import JsonBinClient
 logger = logging.getLogger(__name__)
 app = FastAPI()
 jsonbin_client = JsonBinClient()
-
-# передаём его в репозиторий
 repo = BookRepository(client=jsonbin_client)
 
 
