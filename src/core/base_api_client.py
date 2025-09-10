@@ -11,8 +11,7 @@ logging.basicConfig(
 )
 
 
-class BaseApiClient(ABC):
-    """Абстрактный базовый клиент для HTTP-запросов"""
+class BaseApiClient(ABC): # Абстрактный базовый клиент для HTTP-запросов
 
     def __init__(self, base_url: str, headers: dict = None):
         self.base_url = base_url
