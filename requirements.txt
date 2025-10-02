@@ -1,5 +1,12 @@
 fastapi
-uvicorn
-requests
-python-dotenv
+uvicorn[standard]
+sqlalchemy[asyncio]
+asyncpg
 pydantic
+python-dotenv
+aiohttp
+aiofiles
+structlog
+prometheus-client
+pytest
+pytest-asyncio
