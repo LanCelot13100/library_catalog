@@ -7,13 +7,10 @@ from src.core.logger import get_logger
 
 logger = get_logger(__name__)
 
-
 class BookRepository(BookRepositoryInterface):
     """Репозиторий для работы с книгами через абстрактное хранилище"""
-
     def __init__(self, storage_client: StorageClient):
         self.storage = storage_client  # клиент для работы с хранилищем данных
-
 
     async def get_all(self, filters: BookFilters) -> List[BookEntity]:
         """Получить все книги с фильтрацией и пагинацией"""
@@ -185,5 +182,3 @@ class BookRepository(BookRepositoryInterface):
             return 1
         max_id = max(book.get("id", 0) for book in books_data)
         return max_id + 1
-
-

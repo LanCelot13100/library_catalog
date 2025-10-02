@@ -48,6 +48,7 @@ async def lifespan(fastapi_app: FastAPI):
         logger.error(f"Error during application shutdown: {e}")
 
 
+
 def create_app() -> FastAPI:
     """Создает и настраивает FastAPI приложение"""
 

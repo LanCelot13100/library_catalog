@@ -8,12 +8,12 @@ from src.core.exceptions import ApiClientError
 logger = get_logger(__name__)
 
 
+
 class BaseApiClient(ABC):
     """
     Базовый класс для всех HTTP API клиентов.
     Предоставляет общую функциональность для HTTP запросов.
     """
-
     def __init__(self, base_url: str, headers: Optional[Dict[str, str]] = None):
         self.base_url = base_url.rstrip('/')
         self.default_headers = headers or {}
