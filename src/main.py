@@ -1,64 +1,76 @@
-import logging
-from fastapi import FastAPI, Query, HTTPException
-from typing import List, Optional
-from src.models import Book, BookCreate, BookUpdate
-from src.repositories.book_repository import BookRepository
-from src.clients.jsonbin_client import JsonBinClient
+from fastapi import FastAPI
+from contextlib import asynccontextmanager
+
+from src.middleware.error_handling import ErrorHandlingMiddleware
+from src.middleware.logging_middleware import setup_logging_middleware
+from src.middleware.metrics import prometheus_middleware, get_metrics
+from src.core.logger import setup_logging, get_logger
+from src.core.db import create_tables, close_db_connection, check_db_connection
+from src.controllers.book_controller import router as book_router
+
+logger = get_logger(__name__)
 
 
-logger = logging.getLogger(__name__)
-app = FastAPI()
-jsonbin_client = JsonBinClient()
 
-# передаём его в репозиторий
-repo = BookRepository(client=jsonbin_client)
+@asynccontextmanager
+async def lifespan(fastapi_app: FastAPI):
+    """Управляет запуском и остановкой приложения"""
 
+    logger.info("Starting up Library API application")
 
-@app.get("/books", response_model=List[Book])
-def get_books(
-    title: Optional[str] = Query(None),
-    author: Optional[str] = Query(None),
-    status: Optional[str] = Query(None),
-):
-    logger.info(f"GET /books | filters: title={title}, author={author}, status={status}")
-    books = repo.get_books()
-    if title:
-        books = [b for b in books if title.lower() in b["title"].lower()]
-    if author:
-        books = [b for b in books if author.lower() in b["author"].lower()]
-    if status:
-        books = [b for b in books if b["status"] == status]
-    return books
+    try:
+        await create_tables()
+        logger.info("Database tables created/verified")
 
+        db_healthy = await check_db_connection()
+        if db_healthy:
+            logger.info("Database connection verified")
+        else:
+            logger.warning("Database connection failed, but continuing startup")
 
-@app.get("/books/{book_id}", response_model=Book)
-def get_book(book_id: int):
-    logger.info(f"GET /books/{book_id}")
-    book = repo.get_book(book_id)
-    if not book:
-        raise HTTPException(status_code=404, detail="Book not found")
-    return book
+        logger.info("Application startup completed successfully")
 
+    except Exception as e:
+        logger.error(f"Error during application startup: {e}")
+        raise
 
-@app.post("/books", response_model=Book)
-def create_book(book: BookCreate):
-    logger.info(f"POST /books | {book.title} by {book.author}")
-    return repo.add_book(book.model_dump())
+    yield  # приложение работает
+
+    # Shutdown events
+    logger.info("Shutting down Library API application")
+
+    try:
+        await close_db_connection()
+        logger.info("Database connections closed")
+        logger.info("Application shutdown completed")
+
+    except Exception as e:
+        logger.error(f"Error during application shutdown: {e}")
 
 
-@app.put("/books/{book_id}", response_model=Book)
-def update_book(book_id: int, book_update: BookUpdate):
-    logger.info(f"PUT /books/{book_id}")
-    updated = repo.update_book(book_id, book_update.model_dump(exclude_unset=True))
-    if not updated:
-        raise HTTPException(status_code=404, detail="Book not found")
-    return updated
+def create_app() -> FastAPI:
+    """Создает и настраивает FastAPI приложение"""
+
+    # Инициализируем систему логирования
+    setup_logging()
+    logger.info("Creating FastAPI application")
+
+    # Создаем основное приложение
+    fastapi_app = FastAPI(
+        title="Library Management API",
+        description="API для управления библиотекой книг",
+        version="1.0.0",
+        lifespan=lifespan
+    )
+
+    fastapi_app.add_middleware(ErrorHandlingMiddleware)  # обработка ошибок (первым)
+    setup_logging_middleware(fastapi_app)  # логирование HTTP запросов
+    fastapi_app.middleware("http")(prometheus_middleware)  # метрики Prometheus
+    fastapi_app.include_router(book_router)  # подключаем все эндпоинты для работы с книгами
+    fastapi_app.add_api_route("/metrics", get_metrics, methods=["GET"])  # эндпоинт для сбора метрик
+
+    logger.info("FastAPI application created and configured")  # логируем завершение конфигурации
+    return fastapi_app  # возвращаем настроенное приложение
 
 
-@app.delete("/books/{book_id}")
-def delete_book(book_id: int):
-    logger.info(f"DELETE /books/{book_id}")
-    deleted = repo.delete_book(book_id)
-    if not deleted:
-        raise HTTPException(status_code=404, detail="Book not found")
-    return deleted
+app = create_app()  # Точка входа всего приложения
