@@ -49,7 +49,7 @@ class MetadataService:
                 "isbn": book.isbn
             }
 
-            logger.info(f"📦 Final metadata: cover_url={metadata['cover_url']}, isbn={metadata['isbn']}")
+            logger.info(f"Final metadata: cover_url={metadata['cover_url']}, isbn={metadata['isbn']}")
 
             logger.info(f"Successfully retrieved metadata for '{title}' by {author}")
             return metadata
